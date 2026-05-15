@@ -1,0 +1,10 @@
+node_modules
+.next
+.env
+.env.local
+__pycache__
+*.pyc
+.idea
+.cursor
+.claude
+*.tsbuildinfo
