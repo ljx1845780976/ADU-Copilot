@@ -1,116 +1,118 @@
-﻿《ADU Copilot 前端开发需求文档 (供 AI Agent 阅读)》。
+# ADU Copilot AI
 
----
+California ADU Compliance AI Audit Tool — upload your PDF, get instant code compliance analysis, and receive AI-powered remediation guidance.
 
-# ADU Copilot (MVP) - 前端开发需求与 PRD
+## Tech Stack
 
-## 1. 项目背景与产品目标 (Context)
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 15, TypeScript, Tailwind CSS, shadcn/ui |
+| Charts | recharts (compliance radar) |
+| Markdown | react-markdown + remark-gfm |
+| PDF (client) | pdf-lib (page extraction for large files) |
+| Auth | Supabase Auth (email/password + Google OAuth) |
+| Backend | FastAPI (Python), streaming responses |
+| PDF (server) | pypdf (text extraction) |
+| AI | Gemini (primary) + DeepSeek (fallback) |
+| DB | Supabase (user credits) |
+| Payments | LemonSqueezy |
 
-* **产品名称**：ADU Copilot AI
-* **产品定位**：面向加州业主和建筑师的 ADU 合规性 AI 审计 SaaS 工具。
-* **核心业务流**：
-1. **免费引流**：用户上传图纸 PDF，AI 提取建筑参数（10+ 项）。
-2. **扣费审计**：用户消耗 30 积分，系统基于加州法规（HCD ADU Handbook）生成雷达图与 Pass/Fail 清单。
-3. **付费解锁**：针对 Fail 项，用户消耗 50 积分，解锁由大模型生成的专业合规修改建议。
-4. **充值闭环**：积分不足时，引导至 LemonSqueezy 购买积分包。
+## Features
 
+- **Splash Screen** — background image with "Get Started" entry
+- **EN/ZH i18n** — full UI + backend audit results + AI prompts in English and Chinese
+- **PDF Upload** — drag & drop with >5MB page selector (client-side pdf-lib trimming)
+- **AI Parameter Extraction** — Gemini native PDF understanding, falls back to pypdf + DeepSeek
+- **Parameter Form** — 24 fields, foldable sections, manual editing
+- **Compliance Audit** — deterministic rule engine based on California HCD ADU Handbook (30 credits)
+- **Radar Chart** — recharts visualization of compliance dimensions
+- **Pass/Fail Checklist** — detailed results per rule with citations
+- **AI Advice** — DeepSeek remediation guidance in Markdown with table support (50 credits)
+- **Export** — download advice as `.md` file
+- **Credits System** — LemonSqueezy recharge flow
+- **Toast Notifications** — non-blocking error/success messages
+- **Streaming** — Vercel-compatible keepalive responses for long-running AI calls
 
-
-## 2. 技术栈要求 (Tech Stack)
-
-* **框架**：Next.js (App Router, React 18+)
-* **语言**：TypeScript (严格模式)
-* **样式**：Tailwind CSS
-* **组件库**：推荐使用 `shadcn/ui` (需要用到 Card, Button, Input, Progress, Dialog, Toast 等)
-* **图表库**：`recharts` (用于渲染合规雷达图)
-* **鉴权状态**：`@supabase/supabase-js` (实现邮箱/Google 登录，获取 JWT token)
-
-## 3. 核心页面规划 (Pages)
-
-### 3.1 落地页 & 工作台 (`app/page.tsx`)
-
-这是单页面应用(SPA)体验的核心页面，按照用户漏斗分为三个状态区块：
-
-* **区块 A：上传与提取区 (Extract)**
-* UI 需求：一个支持拖拽的上传框，限制仅支持 `.pdf`。
-* 交互：上传时显示 Loading (提取中...)，完成后将后端返回的 JSON 数据填入下方的“参数确认表单”。
-
-
-* **区块 B：参数确认表单 (Parameters Form)**
-* UI 需求：将提取到的 `proposed_adu_sqft`, `adu_type`, `rear_setback_ft` 等数据用表单展示，允许用户手动修改纠错。
-* 交互：表单底部有一个“开始硬核审计 (消耗 30 积分)”的按钮。点击前需校验用户是否登录及积分余额。
-
-
-* **区块 C：审计报告与雷达图 (Audit & Radar)**
-* UI 需求：左侧使用 `recharts` 渲染合规雷达图（基于后端返回的 `radar` 数组）。右侧渲染 Checklist，绿色显示 Pass，红色显示 Fail。
-
-
-* **区块 D：AI 专家建议 (Advise - Paywall)**
-* UI 需求：如果存在 Fail 项，展示一个模糊化(Blur)的建议面板。
-* 交互：提供“解锁 AI 规避方案 (消耗 50 积分)”按钮。点击扣费后，展示具体的 Markdown 格式建议。
-
-
-
-### 3.2 导航栏与全局状态 (Layout/Navbar)
-
-* **左侧**：Logo 与产品名。
-* **右侧**：
-* 未登录：显示“登录/注册”按钮 (唤起 Supabase Auth 弹窗)。
-* 已登录：显示用户邮箱前缀，以及**当前积分余额 (Credits)**。
-* 充值按钮：“Buy Credits”，点击跳转至 LemonSqueezy Checkout 链接（可新开标签页）。
-
-
-
-## 4. 后端 API 接口契约 (API Integration Guide for AI)
-
-前端必须严格按照以下契约调用部署好的 FastAPI 后端。
-**Base URL**: 后端 API 地址 (需配置在 `.env.local` 中的 `NEXT_PUBLIC_API_URL`)。
-**Auth Header**: 所有需要扣积分的接口（`/api/audit`, `/api/advise`, `/api/credits`）必须在 Request Header 中携带：`Authorization: Bearer <Supabase_Access_Token>`。
-
-### 4.1 数据提取 (Free)
-
-* **Endpoint**: `POST /api/extract`
-* **Payload**: `multipart/form-data` (字段名: `file`)
-* **Response**: `{ "status": "success", "data": { "adu_type": "Detached", "proposed_adu_sqft": 800, ... } }`
-
-### 4.2 规则审计 (Cost: 30 Credits)
-
-* **Endpoint**: `POST /api/audit`
-* **Payload (JSON)**:
-```json
-{
-  "parameters": {
-    "adu_type": "Detached",
-    "proposed_adu_sqft": 800,
-    "rear_setback_ft": 4,
-    "side_setback_ft": 4,
-    "proposed_height_ft": 16,
-    "is_near_transit": false
-  }
-}
+## Project Structure
 
 ```
+adu-audit/
+├── api/
+│   └── index.py            # FastAPI backend (extract, audit, advise, credits, webhook)
+├── app/
+│   ├── components/         # UI components
+│   ├── providers/          # Auth + Language contexts
+│   ├── layout.tsx           # Root layout
+│   ├── page.tsx             # Main SPA
+│   └── globals.css          # Tailwind + shadcn theme + background
+├── components/ui/          # shadcn primitives (Button, Card, Dialog, etc.)
+├── lib/
+│   ├── i18n.ts             # Translation dictionaries (EN/ZH, 80+ keys)
+│   ├── api.ts              # Frontend API layer
+│   ├── supabase.ts         # Supabase client
+│   └── utils.ts            # cn() utility
+├── public/
+│   └── backgroup.png       # Background image
+├── vercel.json             # Vercel hybrid deploy (Next.js + Python API)
+├── requirements.txt        # Python dependencies
+└── package.json            # Node dependencies
+```
 
+## Getting Started
 
-* **Response**: `{ "status": "success", "audit_results": [...], "radar": [...], "failed_items": [...], "credits_remaining": 70 }`
-* *状态更新*：前端拿到返回值后，需全局更新用户的 `credits_remaining`。
+### Prerequisites
 
-### 4.3 AI 建议 (Cost: 50 Credits)
+- Python 3.10+, Node.js 20+, Supabase project
 
-* **Endpoint**: `POST /api/advise`
-* **Payload (JSON)**: 传入 parameters 以及刚才 audit 接口返回的 failed_items。
-* **Response**: `{ "status": "success", "advice": "Markdown text...", "credits_remaining": 20 }`
+### Environment Variables
 
-## 5. 执行步骤建议 (Step-by-Step Prompts)
+**`.env`** (Python backend):
 
-*请 按照以下顺序逐步完成代码编写，不要一次性生成所有文件以免混乱：*
+```env
+DEEPSEEK_API_KEY=sk-xxx
+DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+GEMINI_API_KEY=xxx
+GEMINI_MODEL=gemini-2.5-flash
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=xxx
+SUPABASE_JWT_SECRET=xxx
+SUPABASE_ANON_KEY=xxx
+SIGNUP_CREDITS=100
+```
 
-1. **Step 1**: 初始化 Next.js 项目，配置 Tailwind CSS，安装 `lucide-react`, `recharts`, `@supabase/supabase-js`。
-2. **Step 2**: 编写 `utils/supabase.ts`，实现与 Supabase 的连接配置，并创建登录/注册的 UI 组件（Dialog 弹窗）。
-3. **Step 3**: 开发主页面的 UI 骨架（Navbar, Upload 区，Form 区）。暂时使用 Mock 数据渲染雷达图和结果清单。
-4. **Step 4**: 串联 API 逻辑。实现从上传 PDF -> 获取参数填入 Form -> 携带 JWT Token 请求 `/api/audit` -> 渲染真实雷达图的完整数据流。
-5. **Step 5**: 实现积分扣除后的状态同步，以及 Markdown 文本渲染组件（用于展示 `/api/advise` 返回的专业建议）。
+**`.env.local`** (Next.js frontend):
 
----
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-*Please start with Step 1 and ask for my confirmation before moving to Step 2.**
+### Run Locally
+
+```bash
+# Terminal 1 — Python API
+.venv\Scripts\uvicorn api.index:app --host 0.0.0.0 --port 8000 --reload
+
+# Terminal 2 — Next.js
+npm install && npm run dev
+```
+
+Open **http://localhost:3000**
+
+### Supabase Setup
+
+1. Create `user_credits` table: `id` (uuid), `user_id` (text, unique), `credits` (int4)
+2. Auth > URL Configuration: Site URL = `http://localhost:3000`, Redirect URLs = `http://localhost:3000/**`
+
+## API Endpoints
+
+| Method | Path | Auth | Cost | Description |
+|--------|------|------|------|-------------|
+| POST | /api/extract | No | Free | PDF extraction (streaming, `?lang=en\|zh`) |
+| POST | /api/audit | JWT | 30 | Rule compliance audit (`?lang=en\|zh`) |
+| POST | /api/advise | JWT | 50 | AI remediation advice (streaming, `lang` in body) |
+| GET | /api/credits | JWT | Free | Credit balance |
+| POST | /api/webhooks/lemonsqueezy | HMAC | Free | Payment webhook |
+| GET | /api/health | No | Free | Health check |
