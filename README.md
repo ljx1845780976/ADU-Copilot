@@ -116,3 +116,10 @@ Open **http://localhost:3000**
 | GET | /api/credits | JWT | Free | Credit balance |
 | POST | /api/webhooks/lemonsqueezy | HMAC | Free | Payment webhook |
 | GET | /api/health | No | Free | Health check |
+
+![img](https://github.com/ljx1845780976/img/blob/main/adu_1.png?raw=true)
+![img](https://github.com/ljx1845780976/img/blob/main/adu_2.png?raw=true)
+![img](https://github.com/ljx1845780976/img/blob/main/adu_3.png?raw=true)
+![img](https://github.com/ljx1845780976/img/blob/main/adu_4.png?raw=true)
+![img](https://github.com/ljx1845780976/img/blob/main/adu_5.png?raw=true)
+![img](https://github.com/ljx1845780976/img/blob/main/adu_6.png?raw=true)
