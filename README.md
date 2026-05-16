@@ -1,3 +1,4 @@
+![img](https://github.com/ljx1845780976/img/blob/main/adu_1.png?raw=true)
 # ADU Copilot AI
 
 California ADU Compliance AI Audit Tool — upload your PDF, get instant code compliance analysis, and receive AI-powered remediation guidance.
@@ -117,9 +118,13 @@ Open **http://localhost:3000**
 | POST | /api/webhooks/lemonsqueezy | HMAC | Free | Payment webhook |
 | GET | /api/health | No | Free | Health check |
 
-![img](https://github.com/ljx1845780976/img/blob/main/adu_1.png?raw=true)
+
 ![img](https://github.com/ljx1845780976/img/blob/main/adu_2.png?raw=true)
+
 ![img](https://github.com/ljx1845780976/img/blob/main/adu_3.png?raw=true)
+
 ![img](https://github.com/ljx1845780976/img/blob/main/adu_4.png?raw=true)
+
 ![img](https://github.com/ljx1845780976/img/blob/main/adu_5.png?raw=true)
+
 ![img](https://github.com/ljx1845780976/img/blob/main/adu_6.png?raw=true)
